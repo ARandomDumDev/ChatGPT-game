@@ -1,166 +1,625 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Puffy Pipes</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Puffy Pipes — Maxinuism Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-    body {
-        margin: 0;
-        background: linear-gradient(#8fd3f4, #84fab0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        font-family: 'Poppins', sans-serif;
-    }
-    canvas {
-        background: transparent;
-        display: block;
-    }
-    #startScreen {
-        position: absolute;
-        background: rgba(255, 255, 255, 0.8);
-        padding: 20px 40px;
-        border-radius: 12px;
-        text-align: center;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-    button {
-        background: #ff8a65;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        margin-top: 15px;
-        font-size: 18px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.2s ease;
-    }
-    button:hover {
-        background: #ff7043;
-    }
+  :root{
+    --ui-bg: rgba(255,255,255,0.85);
+    --accent: #ff61a6;
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:"Poppins",system-ui,-apple-system,Segoe UI,Roboto;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    background:#0c1b2a;
+    overflow:hidden;
+  }
+  #ui {
+    position:absolute;
+    left:20px;
+    top:20px;
+    z-index:40;
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .badge {
+    background:var(--ui-bg);
+    padding:10px 14px;
+    border-radius:12px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.25);
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .big-score{
+    font-weight:800;
+    font-size:20px;
+    color:#fff;
+    text-shadow:0 2px 8px rgba(0,0,0,0.6);
+  }
+  #overlay {
+    position: absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    pointer-events:auto;
+  }
+  .panel{
+    min-width:320px;
+    max-width:720px;
+    border-radius:16px;
+    padding:28px;
+    background:linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85));
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    text-align:center;
+    transform-origin:center;
+  }
+  .title {
+    font-weight:800;
+    font-size:28px;
+    margin:0 0 12px 0;
+    color: #0b2540;
+  }
+  .sub {
+    margin:0 0 18px 0;
+    color:#233d4d;
+  }
+  .start-btn{
+    appearance:none;
+    border:0;
+    background:linear-gradient(90deg,#ff61a6,#ffd166,#42e695);
+    padding:12px 26px;
+    font-weight:700;
+    letter-spacing:0.6px;
+    border-radius:12px;
+    cursor:pointer;
+    box-shadow:0 10px 30px rgba(66,230,149,0.12), inset 0 -2px 0 rgba(255,255,255,0.2);
+    font-size:16px;
+  }
+  .muted { font-size:13px; color:#567; margin-top:10px; }
+  #toggles { display:flex; gap:12px; justify-content:center; margin-top:14px; }
+  .switch { display:flex; gap:8px; align-items:center; }
+  canvas { display:block; width:100vw; height:100vh; }
+  footer.hint {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.9);
+    font-size:13px;
+    z-index:60;
+    text-shadow:0 2px 8px rgba(0,0,0,0.3);
+  }
 </style>
 </head>
 <body>
-<div id="startScreen">
-    <h1>Puffy Pipes</h1>
-    <button onclick="startGame()">Start Game</button>
+<div id="ui">
+  <div class="badge">
+    <div class="big-score" id="scoreLabel">Score: 0</div>
+  </div>
+  <div class="badge" id="comboBadge" style="display:none">
+    <div style="font-weight:700;color:#222">Maxinuism</div>
+  </div>
 </div>
-<canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<div id="overlay">
+  <div class="panel" id="startPanel">
+    <h1 class="title">Puffy Pipes — Maxinuism</h1>
+    <p class="sub">Playful. Loud. Extremely vibrant. Tap / Click / Space to jump. Avoid the pipes and vibe out.</p>
+    <div id="toggles">
+      <label class="switch">
+        <input id="maxToggle" type="checkbox" checked>
+        <span style="font-weight:700">Maxinuism Mode</span>
+      </label>
+    </div>
+    <div style="margin-top:18px">
+      <button class="start-btn" id="startBtn">Start Game</button>
+    </div>
+    <div class="muted">Pro tip: Open fullscreen for maximum chaos.</div>
+  </div>
+</div>
+
+<canvas id="c"></canvas>
+<div class="hint" id="hint">Tap / Click / Space to jump • Press R to restart after Game Over</div>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+(function(){
+  // ============== Setup & Globals ==============
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  let DPR = Math.max(window.devicePixelRatio || 1, 1);
+  function resizeCanvas(){
+    DPR = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = Math.floor(innerWidth * DPR);
+    canvas.height = Math.floor(innerHeight * DPR);
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  addEventListener('resize', resizeCanvas);
+  resizeCanvas();
 
-let player = { x: 80, y: 300, radius: 15, velocity: 0 };
-let gravity = 0.4;
-let jump = -7;
-let pipes = [];
-let frame = 0;
-let score = 0;
-let gameRunning = false;
+  // Game state
+  let running = false;
+  let t = 0;
+  let lastTime = performance.now();
+  let pipes = [];
+  let particles = [];
+  let shapes = [];
+  const maxParticles = 250;
+  let score = 0;
+  let audioAllowed = false;
+  let audioCtx = null;
+  let maxMode = true;
 
-function startGame() {
-    document.getElementById("startScreen").style.display = "none";
-    player.y = 300;
-    player.velocity = 0;
+  // Player
+  const player = {
+    x: 120, y: innerHeight/2, radius: 24,
+    vy: 0, gravity: 0.5, jumpVel: -10, alive:true,
+    wobble:0
+  };
+
+  // Visual palettes (vibrant)
+  const palettes = [
+    ['#ff61a6','#ffd166','#42e695','#2d9cdb','#7c4dff'],
+    ['#ff6b6b','#ffd93d','#6ee7b7','#5ed0ff','#d36bff'],
+    ['#ff7ab6','#ffdf7e','#8ef6c0','#7dd3ff','#b893ff'],
+    ['#ffa07a','#fff27a','#a1ffce','#78c7ff','#df9dff']
+  ];
+  let pallet = palettes[Math.floor(Math.random()*palettes.length)];
+
+  // responsiveness helpers
+  function vw(px) { return Math.max(1, px * Math.min(innerWidth/1000, 1)); }
+
+  // Utility random
+  function rand(a,b){ return Math.random()*(b-a)+a; }
+  function randint(a,b){ return Math.floor(rand(a,b+1)); }
+
+  // ============== Audio (create on first user interaction) ==============
+  function ensureAudio(){
+    if(audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e){ audioCtx = null; }
+  }
+  function playJump(){
+    ensureAudio(); if(!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 380;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.28);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime+0.3);
+  }
+  function playPop(){
+    ensureAudio(); if(!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'triangle';
+    o.frequency.value = 220;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.4, audioCtx.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.18);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime+0.22);
+  }
+
+  // ============== Background animation layers ==============
+  function createShapes(){
+    shapes = [];
+    for(let i=0;i<12;i++){
+      shapes.push({
+        x: rand(-200, innerWidth+200),
+        y: rand(-200, innerHeight+200),
+        size: rand(28,120),
+        type: ['rect','tri','circle','hex'][i%4],
+        speed: rand(0.1,0.8),
+        rot: rand(0,Math.PI*2),
+        spin: rand(-0.01,0.01),
+        color: pallet[i % pallet.length]
+      });
+    }
+  }
+  createShapes();
+
+  // ============== Pipe generation & patterns ==============
+  const pipeWidthBase = 92;
+  function makePipePattern(colorA, colorB, style){
+    // Offscreen pattern for nicer pipes: stripes or dots
+    const pcanvas = document.createElement('canvas');
+    pcanvas.width = 60; pcanvas.height = 60;
+    const pctx = pcanvas.getContext('2d');
+    pctx.fillStyle = colorA; pctx.fillRect(0,0,pcanvas.width,pcanvas.height);
+    pctx.globalCompositeOperation = 'lighter';
+    pctx.fillStyle = colorB;
+    if(style === 'stripes'){
+      for(let i=-2;i<8;i++){
+        pctx.fillRect(i*12,0,6,pcanvas.height);
+      }
+    } else { // dots
+      for(let y=6;y<pcanvas.height;y+=14){
+        for(let x=6;x<pcanvas.width;x+=14){
+          pctx.beginPath();
+          pctx.arc(x,y,4,0,Math.PI*2);
+          pctx.fill();
+        }
+      }
+    }
+    return ctx.createPattern(pcanvas, 'repeat');
+  }
+
+  function spawnPipe(){
+    const gap = rand(160,240) * (maxMode?0.9:1.0);
+    const minTop = 80;
+    const maxTop = innerHeight - gap - 120;
+    const top = rand(minTop, Math.max(minTop+40, maxTop));
+    const colorA = pallet[randint(0,pallet.length-1)];
+    const colorB = pallet[randint(0,pallet.length-1)];
+    const style = Math.random()>0.5 ? 'stripes' : 'dots';
+    const pattern = makePipePattern(colorA, colorB, style);
+    const width = Math.floor(pipeWidthBase * (maxMode?1.1:1.0));
+    pipes.push({
+      x: innerWidth + width + 20,
+      top: top,
+      bottom: innerHeight - (top + gap),
+      w: width,
+      speed: 3.4 + (maxMode?1.1:0),
+      pattern,
+      colorA,
+      colorB,
+      scored:false
+    });
+  }
+
+  // ============== Particles ==============
+  function spawnParticles(x,y, n=18){
+    for(let i=0;i<n;i++){
+      if(particles.length > maxParticles) break;
+      particles.push({
+        x:x + rand(-6,6),
+        y:y + rand(-6,6),
+        vx: rand(-4,4),
+        vy: rand(-6, -1),
+        life: rand(40,110),
+        size: rand(2,8),
+        col: pallet[randint(0,pallet.length-1)]
+      });
+    }
+  }
+
+  // ============== Controls & Input ==============
+  function jump(){
+    if(!running) return;
+    player.vy = player.jumpVel;
+    player.wobble = 0.9;
+    spawnParticles(player.x, player.y, maxMode?12:6);
+    playJump();
+  }
+  // touch/click
+  canvas.addEventListener('pointerdown', (e)=>{
+    if(!audioAllowed){
+      ensureAudio(); audioAllowed=true;
+    }
+    if(!running){
+      start();
+    } else jump();
+  });
+  // keyboard
+  addEventListener('keydown', (e)=>{
+    if(e.code === 'Space' || e.code === 'ArrowUp'){
+      e.preventDefault();
+      if(!running) start();
+      else jump();
+    } else if(e.key === 'r' || e.key === 'R'){
+      if(!running) restart();
+    }
+  });
+
+  // UI bindings
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const startPanel = document.getElementById('startPanel');
+  const scoreLabel = document.getElementById('scoreLabel');
+  const maxToggle = document.getElementById('maxToggle');
+  maxToggle.addEventListener('change', ()=> {
+    maxMode = maxToggle.checked;
+    document.getElementById('comboBadge').style.display = maxMode ? 'flex' : 'none';
+  });
+  startBtn.addEventListener('click', ()=> {
+    ensureAudio(); audioAllowed=true;
+    start();
+  });
+
+  function start(){
+    overlay.style.display = 'none';
+    running = true;
+    t = 0; lastTime = performance.now();
     pipes = [];
-    frame = 0;
+    particles = [];
     score = 0;
-    gameRunning = true;
+    player.y = innerHeight/2; player.vy = 0; player.alive = true;
+    pallet = palettes[Math.floor(Math.random()*palettes.length)];
+    createShapes();
+    // pre-spawn a couple of pipes
+    for(let i=0;i<2;i++) spawnPipe();
     loop();
-}
+  }
+  function restart(){
+    overlay.style.display = 'block';
+    startPanel.querySelector('.title').textContent = 'Game Over — Score: ' + score;
+    running = false;
+  }
 
-function drawPlayer() {
+  // ============== Collision detection ==============
+  function circleRectCollision(cx,cy,r, rx, ry, rw, rh){
+    // find closest point to circle within rectangle
+    const closestX = Math.max(rx, Math.min(cx, rx + rw));
+    const closestY = Math.max(ry, Math.min(cy, ry + rh));
+    const dx = cx - closestX;
+    const dy = cy - closestY;
+    return (dx*dx + dy*dy) < r*r;
+  }
+
+  // ============== Draw helpers ==============
+  function drawGlowCircle(x,y,r, innerColor, outerColor){
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffcc00";
+    ctx.shadowBlur = Math.min(48, r*2.4);
+    ctx.shadowColor = outerColor;
+    const g = ctx.createRadialGradient(x - r*0.25, y - r*0.25, r*0.2, x, y, r);
+    g.addColorStop(0, innerColor);
+    g.addColorStop(1, outerColor);
+    ctx.fillStyle = g;
+    ctx.arc(x,y,r,0,Math.PI*2);
     ctx.fill();
-}
+    ctx.restore();
+  }
+  function drawCloud(x,y,scale=1, alpha=1){
+    ctx.save();
+    ctx.globalAlpha = alpha*0.95;
+    ctx.beginPath();
+    ctx.arc(x-28*scale, y, 22*scale, 0,Math.PI*2);
+    ctx.arc(x-6*scale, y-6*scale, 28*scale, 0,Math.PI*2);
+    ctx.arc(x+18*scale, y, 20*scale, 0,Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+    ctx.restore();
+  }
 
-function drawPipes() {
-    ctx.fillStyle = "#4caf50";
-    pipes.forEach(pipe => {
-        ctx.fillRect(pipe.x, 0, 50, pipe.top);
-        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, 50, pipe.bottom);
-    });
-}
-
-function drawClouds() {
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.arc((frame * 0.5 + i * 100) % canvas.width, 80 + i * 40, 20, 0, Math.PI * 2);
-        ctx.arc((frame * 0.5 + i * 100 + 20) % canvas.width, 80 + i * 40, 20, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-function update() {
-    player.velocity += gravity;
-    player.y += player.velocity;
-
-    if (frame % 90 === 0) {
-        let top = Math.random() * 200 + 50;
-        let bottom = Math.random() * 200 + 50;
-        pipes.push({ x: canvas.width, top: top, bottom: bottom });
-    }
-
-    pipes.forEach(pipe => {
-        pipe.x -= 2;
-        if (pipe.x + 50 < 0) {
-            pipes.shift();
-            score++;
-        }
-    });
-
-    if (player.y + player.radius > canvas.height || player.y - player.radius < 0) {
-        gameOver();
-    }
-
-    pipes.forEach(pipe => {
-        if (player.x + player.radius > pipe.x &&
-            player.x - player.radius < pipe.x + 50 &&
-            (player.y - player.radius < pipe.top || player.y + player.radius > canvas.height - pipe.bottom)) {
-            gameOver();
-        }
-    });
-}
-
-function drawScore() {
-    ctx.fillStyle = "#fff";
-    ctx.font = "24px Poppins";
-    ctx.fillText(`Score: ${score}`, 20, 40);
-}
-
-function loop() {
-    if (!gameRunning) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawClouds();
-    drawPipes();
-    drawPlayer();
-    drawScore();
-    update();
-    frame++;
+  // ============== Main loop ==============
+  let pipeTimer = 0;
+  function loop(now) {
+    if(!running) return;
     requestAnimationFrame(loop);
-}
+    const dt = Math.min(60, (now - lastTime) / (1000/60)); // normalized frames
+    lastTime = now;
+    t += dt;
+    // Background animated gradient
+    const hueShift = (t/180) % 1;
+    const g1 = `hsl(${(200 + hueShift*80)%360} 90% 64%)`;
+    const g2 = `hsl(${(140 + hueShift*40)%360} 88% 60%)`;
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    const bg = ctx.createLinearGradient(0,0,0,innerHeight);
+    bg.addColorStop(0, g1);
+    bg.addColorStop(1, g2);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,innerWidth,innerHeight);
 
-function gameOver() {
-    gameRunning = false;
-    document.getElementById("startScreen").style.display = "block";
-    document.querySelector("#startScreen h1").textContent = `Game Over — Score: ${score}`;
-}
+    // Glowing soft vignette
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    const vign = ctx.createRadialGradient(innerWidth/2, innerHeight/2, innerHeight*0.2, innerWidth/2, innerHeight/2, innerHeight*1.2);
+    vign.addColorStop(0, 'rgba(255,255,255,0.02)');
+    vign.addColorStop(1, 'rgba(0,0,0,0.12)');
+    ctx.fillStyle = vign;
+    ctx.fillRect(0,0,innerWidth,innerHeight);
+    ctx.restore();
 
-document.addEventListener("keydown", e => {
-    if (e.code === "Space" && gameRunning) {
-        player.velocity = jump;
+    // Shapes layer (parallax slow)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for(let i=0;i<shapes.length;i++){
+      const s = shapes[i];
+      s.x -= s.speed * (maxMode?0.8:0.4) * (dt/1.2);
+      s.rot += s.spin * (dt/1.2);
+      if(s.x < -200) s.x = innerWidth + rand(60,260);
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = s.color;
+      if(s.type === 'rect'){
+        ctx.fillRect(-s.size/2, -s.size/2, s.size, s.size);
+      } else if(s.type === 'tri'){
+        ctx.beginPath();
+        ctx.moveTo(0,-s.size/1.2);
+        ctx.lineTo(-s.size/1.2, s.size/1.6);
+        ctx.lineTo(s.size/1.2, s.size/1.6);
+        ctx.closePath();
+        ctx.fill();
+      } else if(s.type === 'hex'){
+        ctx.beginPath();
+        for(let k=0;k<6;k++){
+          const a = k/6 * Math.PI*2;
+          ctx.lineTo(Math.cos(a)*s.size/2, Math.sin(a)*s.size/2);
+        }
+        ctx.closePath(); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(0,0,s.size/2,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
     }
-});
+    ctx.restore();
 
-canvas.addEventListener("click", () => {
-    if (gameRunning) player.velocity = jump;
-});
+    // Clouds (foreground)
+    for(let i=0;i<5;i++){
+      const cx = ((t*0.6) + i*230) % (innerWidth + 300) - 150;
+      const cy = (60 + i*90) + Math.sin((t/30)+i)*8;
+      drawCloud(cx, cy, 1.0 + (i%2)*0.2, 1 - i*0.08);
+    }
+
+    // Pipes update & draw
+    pipeTimer += dt;
+    if(pipeTimer > (90 - (maxMode?20:0))){
+      pipeTimer = 0;
+      spawnPipe();
+    }
+    for(let i=pipes.length-1;i>=0;i--){
+      const p = pipes[i];
+      p.x -= p.speed * (dt/1.2);
+      // draw top pipe
+      ctx.save();
+      ctx.fillStyle = p.pattern;
+      ctx.fillRect(p.x, 0, p.w, p.top);
+      // rounded cap
+      ctx.fillStyle = p.colorB;
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w/2, p.top, p.w/2, 18, 0, Math.PI, 0);
+      ctx.fill();
+      // bottom pipe
+      ctx.fillStyle = p.pattern;
+      ctx.fillRect(p.x, innerHeight - p.bottom, p.w, p.bottom);
+      ctx.fillStyle = p.colorB;
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w/2, innerHeight - p.bottom, p.w/2, 18, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.restore();
+
+      // check scoring
+      if(!p.scored && (p.x + p.w) < player.x - player.radius){
+        p.scored = true;
+        score++;
+        scoreLabel.textContent = 'Score: ' + score;
+        spawnParticles(player.x + 8, player.y, maxMode?18:8);
+        playPop();
+      }
+      // remove offscreen
+      if(p.x + p.w < -40) pipes.splice(i,1);
+    }
+
+    // Player physics
+    if(player.alive){
+      player.vy += player.gravity * (dt/1.6);
+      player.y += player.vy * (dt/1.6);
+      player.wobble *= 0.92;
+    }
+
+    // draw player trail particles (small)
+    for(let i=particles.length-1;i>=0;i--){
+      const part = particles[i];
+      part.x += part.vx * (dt/1.2);
+      part.y += part.vy * (dt/1.2);
+      part.vy += 0.18 * (dt/1.2);
+      part.life -= dt;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, part.life/90));
+      ctx.fillStyle = part.col;
+      ctx.beginPath();
+      ctx.arc(part.x, part.y, part.size, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+      if(part.life <= 0) particles.splice(i,1);
+    }
+
+    // draw player (glowing, bouncy)
+    const playerGlow = pallet[0];
+    drawGlowCircle(player.x, player.y, player.radius + 6, '#fff9d9', playerGlow);
+    // inner shine
+    ctx.save();
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.ellipse(player.x - player.radius*0.35, player.y - player.radius*0.35, player.radius*0.5, player.radius*0.32, -0.35, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // shadow under player
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(player.x+8, player.y + player.radius + 8, player.radius*0.9, player.radius*0.35, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // collision vs pipes
+    for(let i=0;i<pipes.length;i++){
+      const p = pipes[i];
+      if(circleRectCollision(player.x, player.y, player.radius, p.x, 0, p.w, p.top) ||
+         circleRectCollision(player.x, player.y, player.radius, p.x, innerHeight - p.bottom, p.w, p.bottom)){
+        // die
+        if(player.alive){
+          player.alive = false;
+          spawnParticles(player.x, player.y, 36);
+          setTimeout(()=> {
+            overlay.style.display = 'flex';
+            startPanel.querySelector('.title').textContent = 'Game Over — Score: ' + score;
+            running = false;
+          }, 300);
+        }
+      }
+    }
+
+    // world bounds
+    if(player.y - player.radius < 0 || player.y + player.radius > innerHeight){
+      if(player.alive){
+        player.alive = false;
+        spawnParticles(player.x, player.y, 30);
+        setTimeout(()=> {
+          overlay.style.display = 'flex';
+          startPanel.querySelector('.title').textContent = 'Game Over — Score: ' + score;
+          running = false;
+        }, 300);
+      }
+    }
+
+    // subtle tilt / squash when moving
+    player.x = Math.max(80, player.x);
+    // draw decorative neon streaks (foreground)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for(let i=0;i<3;i++){
+      ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+      ctx.lineWidth = 1 + i*2;
+      ctx.beginPath();
+      ctx.moveTo(0, innerHeight*0.15 + i*40);
+      ctx.quadraticCurveTo(innerWidth*0.4, innerHeight*0.3 + Math.sin(t/40 + i)*30, innerWidth, innerHeight*0.15 + i*40);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // limit particle count
+    if(particles.length > maxParticles) particles.splice(0, particles.length - maxParticles);
+  }
+
+  // set initial UI
+  document.getElementById('comboBadge').style.display = maxMode ? 'flex' : 'none';
+  scoreLabel.textContent = 'Score: 0';
+
+  // Expose restart via global (R key handled above)
+  window.restartGame = restart;
+
+  // Accessibility: ensure game stops when tab hidden
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden && running){
+      // pause
+      running = false;
+      overlay.style.display = 'flex';
+      startPanel.querySelector('.title').textContent = 'Paused — Score: ' + score;
+    }
+  });
+})();
 </script>
 </body>
 </html>
