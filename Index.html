@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puffy Pipes</title>
+<style>
+    body {
+        margin: 0;
+        background: linear-gradient(#8fd3f4, #84fab0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: 'Poppins', sans-serif;
+    }
+    canvas {
+        background: transparent;
+        display: block;
+    }
+    #startScreen {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 20px 40px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    button {
+        background: #ff8a65;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        margin-top: 15px;
+        font-size: 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    button:hover {
+        background: #ff7043;
+    }
+</style>
+</head>
+<body>
+<div id="startScreen">
+    <h1>Puffy Pipes</h1>
+    <button onclick="startGame()">Start Game</button>
+</div>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let player = { x: 80, y: 300, radius: 15, velocity: 0 };
+let gravity = 0.4;
+let jump = -7;
+let pipes = [];
+let frame = 0;
+let score = 0;
+let gameRunning = false;
+
+function startGame() {
+    document.getElementById("startScreen").style.display = "none";
+    player.y = 300;
+    player.velocity = 0;
+    pipes = [];
+    frame = 0;
+    score = 0;
+    gameRunning = true;
+    loop();
+}
+
+function drawPlayer() {
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffcc00";
+    ctx.fill();
+}
+
+function drawPipes() {
+    ctx.fillStyle = "#4caf50";
+    pipes.forEach(pipe => {
+        ctx.fillRect(pipe.x, 0, 50, pipe.top);
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, 50, pipe.bottom);
+    });
+}
+
+function drawClouds() {
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc((frame * 0.5 + i * 100) % canvas.width, 80 + i * 40, 20, 0, Math.PI * 2);
+        ctx.arc((frame * 0.5 + i * 100 + 20) % canvas.width, 80 + i * 40, 20, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function update() {
+    player.velocity += gravity;
+    player.y += player.velocity;
+
+    if (frame % 90 === 0) {
+        let top = Math.random() * 200 + 50;
+        let bottom = Math.random() * 200 + 50;
+        pipes.push({ x: canvas.width, top: top, bottom: bottom });
+    }
+
+    pipes.forEach(pipe => {
+        pipe.x -= 2;
+        if (pipe.x + 50 < 0) {
+            pipes.shift();
+            score++;
+        }
+    });
+
+    if (player.y + player.radius > canvas.height || player.y - player.radius < 0) {
+        gameOver();
+    }
+
+    pipes.forEach(pipe => {
+        if (player.x + player.radius > pipe.x &&
+            player.x - player.radius < pipe.x + 50 &&
+            (player.y - player.radius < pipe.top || player.y + player.radius > canvas.height - pipe.bottom)) {
+            gameOver();
+        }
+    });
+}
+
+function drawScore() {
+    ctx.fillStyle = "#fff";
+    ctx.font = "24px Poppins";
+    ctx.fillText(`Score: ${score}`, 20, 40);
+}
+
+function loop() {
+    if (!gameRunning) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawClouds();
+    drawPipes();
+    drawPlayer();
+    drawScore();
+    update();
+    frame++;
+    requestAnimationFrame(loop);
+}
+
+function gameOver() {
+    gameRunning = false;
+    document.getElementById("startScreen").style.display = "block";
+    document.querySelector("#startScreen h1").textContent = `Game Over — Score: ${score}`;
+}
+
+document.addEventListener("keydown", e => {
+    if (e.code === "Space" && gameRunning) {
+        player.velocity = jump;
+    }
+});
+
+canvas.addEventListener("click", () => {
+    if (gameRunning) player.velocity = jump;
+});
+</script>
+</body>
+</html>
